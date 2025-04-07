@@ -186,9 +186,11 @@ pipeline {
     post {
         success {
             echo "Pipeline completed successfully!"
+            githubNotify context: 'Jenkins CI', status: 'success', description: 'Build and tests passed'
         }
         failure {
             echo "Pipeline failed!"
+            githubNotify context: 'Jenkins CI', status: 'failure', description: 'Build or tests failed'
         }
         always {
             script {
