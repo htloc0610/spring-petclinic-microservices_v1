@@ -129,7 +129,7 @@ pipeline {
                                 if (env.CHANGE_ID && env.CHANGE_TARGET == 'main') {
                                     def coverageValue = coverageData.toFloat()
                                     if (coverageValue < 70) {
-                                        githubChecks(
+                                        publishChecks(
                                             name: "Test Code Coverage - ${service}",
                                             status: 'COMPLETED',
                                             conclusion: 'FAILURE',
@@ -142,7 +142,7 @@ pipeline {
                                         )
                                         error "Code coverage for ${service} is ${coverageValue}%, which is below the required 70% for PRs to main. Failing the pipeline."
                                     } else {
-                                        githubChecks(
+                                        publishChecks(
                                             name: "Test Code Coverage - ${service}",
                                             status: 'COMPLETED',
                                             conclusion: 'SUCCESS',
