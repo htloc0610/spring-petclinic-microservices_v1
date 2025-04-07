@@ -16,6 +16,7 @@ pipeline {
 
                     dir(WORKSPACE_DIR) {
                         if (env.CHANGE_ID) {
+                            // Pull Request
                             echo "Checking out PR #${env.CHANGE_ID} (target: ${env.CHANGE_TARGET})"
                             sh "git init"
                             sh "git remote add origin ${REPO_URL}"
@@ -23,6 +24,7 @@ pipeline {
                             sh "git fetch origin ${env.CHANGE_TARGET}:refs/remotes/origin/${env.CHANGE_TARGET}"
                             sh "git checkout pr-${env.CHANGE_ID}"
                         } else {
+                            // Branch
                             echo "Checking out branch ${env.BRANCH_NAME}"
                             sh "git clone -b ${env.BRANCH_NAME} ${REPO_URL} ."
                         }
@@ -126,9 +128,13 @@ pipeline {
 
                                 echo "Code Coverage for ${service}: ${coverageData}%"
 
-                                // Save coverage result to a file for later use
-                                sh "echo ${coverageData} > ../../coverage_${service}.txt"
-
+                                // Check coverage > 70 pull request for main
+                                if (env.CHANGE_ID && env.CHANGE_TARGET == 'main') {
+                                    def coverageValue = coverageData.toFloat()
+                                    if (coverageValue < 70) {
+                                        error "Code coverage for ${service} is ${coverageValue}%, which is below the required 70% for PRs to main. Failing the pipeline."
+                                    }
+                                }
                             } catch (Exception e) {
                                 error "Code coverage report generation failed for ${service}"
                             }
@@ -136,50 +142,18 @@ pipeline {
                     }
                 }
             }
-        }
-
-        stage('Notify GitHub') {
-            steps {
-                script {
-                    if (env.CHANGE_ID && env.CHANGE_TARGET == 'main') {
+            post {
+                always {
+                    script {
                         env.AFFECTED_SERVICES.split(",").each { service ->
-                            def coverageFile = "coverage_${service}.txt"
-                            if (fileExists(coverageFile)) {
-                                def coverageStr = readFile(coverageFile).trim()
-                                def coverageVal = coverageStr.toFloat()
-
-                                echo "Notify GitHub: ${service} coverage = ${coverageVal}%"
-
-                                if (coverageVal < 70) {
-                                    githubChecks(
-                                        name: "Test Code Coverage - ${service}",
-                                        status: 'completed',
-                                        conclusion: 'failure',
-                                        detailsURL: env.BUILD_URL,
-                                        output: [
-                                            title: 'Code Coverage Check Failed',
-                                            summary: "Coverage for ${service} is ${coverageVal}%, which is below 70%."
-                                        ]
-                                    )
-                                    error "Code coverage for ${service} is below threshold"
-                                } else {
-                                    githubChecks(
-                                        name: "Test Code Coverage - ${service}",
-                                        status: 'completed',
-                                        conclusion: 'success',
-                                        detailsURL: env.BUILD_URL,
-                                        output: [
-                                            title: 'Code Coverage Check Success',
-                                            summary: "Coverage for ${service} is ${coverageVal}%"
-                                        ]
-                                    )
-                                }
-                            } else {
-                                echo "No coverage file found for ${service}, skipping GitHub notification."
-                            }
+                            publishHTML([
+                                target: [
+                                    reportDir: "${WORKSPACE_DIR}/${service}/target/site/jacoco",
+                                    reportFiles: 'index.html',
+                                    reportName: "Code Coverage - ${service}"
+                                ]
+                            ])
                         }
-                    } else {
-                        echo "Skip GitHub notify: Not a PR to main"
                     }
                 }
             }
