@@ -183,15 +183,12 @@ pipeline {
         }
     }
 
-    import org.kohsuke.github.GHCommitState
     post {
         success {
             echo "Pipeline completed successfully!"
-            githubNotify context: 'Jenkins CI', status: GHCommitState.SUCCESS, description: 'Build and tests passed'
         }
         failure {
             echo "Pipeline failed!"
-            githubNotify context: 'Jenkins CI', status: GHCommitState.FAILURE, description: 'Build or tests failed'
         }
         always {
             script {
@@ -199,6 +196,4 @@ pipeline {
             }
         }
     }
-
-
 }
