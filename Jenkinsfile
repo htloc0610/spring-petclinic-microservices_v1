@@ -126,39 +126,60 @@ pipeline {
 
                                 echo "Code Coverage for ${service}: ${coverageData}%"
 
-                                if (env.CHANGE_ID && env.CHANGE_TARGET == 'main') {
-                                    def coverageValue = coverageData.toFloat()
-                                    if (coverageValue < 70) {
-                                        // Notify GitHub about failure
-                                        githubChecks(
-                                            name: "Test Code Coverage - ${service}",
-                                            status: 'completed',
-                                            conclusion: 'failure',
-                                            detailsURL: env.BUILD_URL,
-                                            output: [
-                                                title: 'Code Coverage Check Failed',
-                                                summary: "Coverage for ${service} is ${coverageValue}%, which is below 70%."
-                                            ]
-                                        )
-                                        error "Code coverage for ${service} is ${coverageValue}%, which is below the required 70%. Failing the pipeline."
-                                    } else {
-                                        // Notify GitHub about success
-                                        githubChecks(
-                                            name: "Test Code Coverage - ${service}",
-                                            status: 'completed',
-                                            conclusion: 'success',
-                                            detailsURL: env.BUILD_URL,
-                                            output: [
-                                                title: 'Code Coverage Check Success',
-                                                summary: "Coverage for ${service} is ${coverageValue}%"
-                                            ]
-                                        )
-                                    }
-                                }
+                                // Save coverage result to a file for later use
+                                sh "echo ${coverageData} > ../../coverage_${service}.txt"
+
                             } catch (Exception e) {
                                 error "Code coverage report generation failed for ${service}"
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        stage('Notify GitHub') {
+            steps {
+                script {
+                    if (env.CHANGE_ID && env.CHANGE_TARGET == 'main') {
+                        env.AFFECTED_SERVICES.split(",").each { service ->
+                            def coverageFile = "coverage_${service}.txt"
+                            if (fileExists(coverageFile)) {
+                                def coverageStr = readFile(coverageFile).trim()
+                                def coverageVal = coverageStr.toFloat()
+
+                                echo "Notify GitHub: ${service} coverage = ${coverageVal}%"
+
+                                if (coverageVal < 70) {
+                                    githubChecks(
+                                        name: "Test Code Coverage - ${service}",
+                                        status: 'completed',
+                                        conclusion: 'failure',
+                                        detailsURL: env.BUILD_URL,
+                                        output: [
+                                            title: 'Code Coverage Check Failed',
+                                            summary: "Coverage for ${service} is ${coverageVal}%, which is below 70%."
+                                        ]
+                                    )
+                                    error "Code coverage for ${service} is below threshold"
+                                } else {
+                                    githubChecks(
+                                        name: "Test Code Coverage - ${service}",
+                                        status: 'completed',
+                                        conclusion: 'success',
+                                        detailsURL: env.BUILD_URL,
+                                        output: [
+                                            title: 'Code Coverage Check Success',
+                                            summary: "Coverage for ${service} is ${coverageVal}%"
+                                        ]
+                                    )
+                                }
+                            } else {
+                                echo "No coverage file found for ${service}, skipping GitHub notification."
+                            }
+                        }
+                    } else {
+                        echo "Skip GitHub notify: Not a PR to main"
                     }
                 }
             }
