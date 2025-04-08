@@ -58,4 +58,45 @@ class VisitResourceTest {
             .andExpect(jsonPath("$.items[1].petId").value(222))
             .andExpect(jsonPath("$.items[2].petId").value(222));
     }
+
+    @Test
+    void shouldFetchVisitsByPetId() throws Exception {
+        given(visitRepository.findByPetId(123))
+            .willReturn(
+                List.of(
+                    Visit.VisitBuilder.aVisit().id(10).petId(123).build()
+                )
+            );
+
+        mvc.perform(get("/owners/*/pets/123/visits"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(10))
+            .andExpect(jsonPath("$[0].petId").value(123));
+    }
+
+    @Test
+    void shouldCreateVisit() throws Exception {
+        Visit newVisit = Visit.VisitBuilder.aVisit()
+            .date(new Date())
+            .description("Check-up")
+            .petId(456)
+            .build();
+
+        Visit savedVisit = Visit.VisitBuilder.aVisit()
+            .id(99)
+            .date(newVisit.getDate())
+            .description(newVisit.getDescription())
+            .petId(newVisit.getPetId())
+            .build();
+
+        given(visitRepository.save(any(Visit.class))).willReturn(savedVisit);
+
+        mvc.perform(post("/owners/*/pets/456/visits")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(newVisit)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").value(99))
+            .andExpect(jsonPath("$.petId").value(456))
+            .andExpect(jsonPath("$.description").value("Check-up"));
+    }
 }
