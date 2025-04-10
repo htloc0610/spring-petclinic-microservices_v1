@@ -17,6 +17,12 @@ import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import java.util.List;
+import java.util.Date;
+import static org.mockito.ArgumentMatchers.any;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import org.springframework.http.MediaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @ExtendWith(SpringExtension.class)
 @WebMvcTest(VisitResource.class)
@@ -76,6 +82,8 @@ class VisitResourceTest {
 
     @Test
     void shouldCreateVisit() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+
         Visit newVisit = Visit.VisitBuilder.aVisit()
             .date(new Date())
             .description("Check-up")
