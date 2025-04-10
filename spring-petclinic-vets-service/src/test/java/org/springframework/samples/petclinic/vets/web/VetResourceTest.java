@@ -26,12 +26,17 @@ import org.springframework.samples.petclinic.vets.model.VetRepository;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.samples.petclinic.vets.model.Specialty;
+
 
 import static java.util.Arrays.asList;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * @author Maciej Szarlinski
@@ -47,7 +52,7 @@ class VetResourceTest {
     @MockBean
     VetRepository vetRepository;
 
-    @Test
+    // @Test
     // void shouldGetAListOfVets() throws Exception {
 
     //     Vet vet = new Vet();
@@ -67,7 +72,7 @@ class VetResourceTest {
         vet.setLastName("Doe");
 
         Specialty specialty = new Specialty();
-        specialty.setId(1);
+        //specialty.setId(1);
         specialty.setName("surgery");
 
         vet.addSpecialty(specialty);
