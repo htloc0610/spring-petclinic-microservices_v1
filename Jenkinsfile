@@ -181,57 +181,57 @@ pipeline {
                 }
             }
         }
-    }
 
-    stage('Build Docker Images') {
-        when {
-            allOf {
-                expression { env.AFFECTED_SERVICES }
-                expression { env.SKIP_PIPELINE != "true" }
+        stage('Build Docker Images') {
+            when {
+                allOf {
+                    expression { env.AFFECTED_SERVICES }
+                    expression { env.SKIP_PIPELINE != "true" }
+                }
             }
-        }
-        steps {
-            script {
-                dir(WORKSPACE_DIR) {
-                    def commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+            steps {
+                script {
+                    dir(WORKSPACE_DIR) {
+                        def commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
 
-                    env.AFFECTED_SERVICES.split(",").each { service ->
-                        echo "Building Docker image for ${service} with tag ${commitId}..."
+                        env.AFFECTED_SERVICES.split(",").each { service ->
+                            echo "Building Docker image for ${service} with tag ${commitId}..."
 
-                        dir(service) {
-                            sh """
-                                docker build -t anwirisme/${service}:${commitId} .
-                            """
+                            dir(service) {
+                                sh """
+                                    docker build -t anwirisme/${service}:${commitId} .
+                                """
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-    stage('Push Docker Images') {
-        when {
-            allOf {
-                expression { env.AFFECTED_SERVICES }
-                expression { env.SKIP_PIPELINE != "true" }
+        stage('Push Docker Images') {
+            when {
+                allOf {
+                    expression { env.AFFECTED_SERVICES }
+                    expression { env.SKIP_PIPELINE != "true" }
+                }
             }
-        }
-        steps {
-            script {
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials-id', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh """
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                    """
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials-id', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh """
+                            echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                        """
 
-                    dir(WORKSPACE_DIR) {
-                        def commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                        dir(WORKSPACE_DIR) {
+                            def commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
 
-                        env.AFFECTED_SERVICES.split(",").each { service ->
-                            echo "Pushing Docker image for ${service}..."
+                            env.AFFECTED_SERVICES.split(",").each { service ->
+                                echo "Pushing Docker image for ${service}..."
 
-                            sh """
-                                docker push anwirisme/${service}:${commitId}
-                            """
+                                sh """
+                                    docker push anwirisme/${service}:${commitId}
+                                """
+                            }
                         }
                     }
                 }
