@@ -200,7 +200,7 @@ pipeline {
 
                             dir(service) {
                                 sh """
-                                    docker build -t anwirisme/${service}:${env.DOCKER_COMMIT_ID} .
+                                    ./mvnw clean install -pl ${service} -PbuildDocker -Ddocker.image.prefix=anwirisme -Ddocker.image.tag=${env.DOCKER_COMMIT_ID}
                                 """
                             }
                         }
