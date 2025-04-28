@@ -198,11 +198,11 @@ pipeline {
                         env.AFFECTED_SERVICES.split(",").each { service ->
                             echo "Building Docker image for ${service} with tag ${env.DOCKER_COMMIT_ID}..."
 
-                            dir(service) {
-                                sh """
-                                    ./mvnw clean install -pl ${service} -PbuildDocker -Ddocker.image.prefix=anwirisme -Ddocker.image.tag=${env.DOCKER_COMMIT_ID}
-                                """
-                            }
+                        sh """
+                            ./mvnw clean install -pl ${service} -PbuildDocker \
+                            -Ddocker.image.prefix=anwirisme \
+                            -Ddocker.image.tag=${env.DOCKER_COMMIT_ID}
+                        """
                         }
                     }
                 }
