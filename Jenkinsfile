@@ -192,26 +192,23 @@ pipeline {
             steps {
                 script {
                     dir(WORKSPACE_DIR) {
-                        dir('repo') {
-                            env.DOCKER_COMMIT_ID = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-                            echo "Commit ID for tagging Docker images: ${env.DOCKER_COMMIT_ID}"
+                        env.DOCKER_COMMIT_ID = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                        echo "Commit ID for tagging Docker images: ${env.DOCKER_COMMIT_ID}"
 
-                            env.AFFECTED_SERVICES.split(",").each { service ->
-                                echo "Building Docker image for ${service} with tag ${env.DOCKER_COMMIT_ID}..."
+                        env.AFFECTED_SERVICES.split(",").each { service ->
+                            echo "Building Docker image for ${service} with tag ${env.DOCKER_COMMIT_ID}..."
 
-                                sh """
-                                    export DOCKER_BUILDKIT=1
-                                    ./mvnw clean install -pl ${service} -PbuildDocker \
-                                    -Ddocker.image.prefix=anwirisme \
-                                    -Ddocker.image.tag=${env.DOCKER_COMMIT_ID}
-                                """
-                            }
+                            sh """
+                                export DOCKER_BUILDKIT=1
+                                ./mvnw clean install -pl ${service} -PbuildDocker \
+                                -Ddocker.image.prefix=anwirisme \
+                                -Ddocker.image.tag=${env.DOCKER_COMMIT_ID}
+                            """
                         }
                     }
                 }
             }
         }
-
 
         stage('Push Docker Images') {
             when {
