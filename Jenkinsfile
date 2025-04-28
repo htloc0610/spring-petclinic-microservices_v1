@@ -192,7 +192,7 @@ pipeline {
             steps {
                 script {
                     dir(WORKSPACE_DIR) {
-                        dir('repo')
+                        dir('repo') {
                             env.DOCKER_COMMIT_ID = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                             echo "Commit ID for tagging Docker images: ${env.DOCKER_COMMIT_ID}"
 
