@@ -192,14 +192,15 @@ pipeline {
             steps {
                 script {
                     dir(WORKSPACE_DIR) {
-                        def commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                        env.DOCKER_COMMIT_ID = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                        echo "Commit ID for tagging Docker images: ${env.DOCKER_COMMIT_ID}"
 
                         env.AFFECTED_SERVICES.split(",").each { service ->
-                            echo "Building Docker image for ${service} with tag ${commitId}..."
+                            echo "Building Docker image for ${service} with tag ${env.DOCKER_COMMIT_ID}..."
 
                             dir(service) {
                                 sh """
-                                    docker build -t anwirisme/${service}:${commitId} .
+                                    docker build -t anwirisme/${service}:${env.DOCKER_COMMIT_ID} .
                                 """
                             }
                         }
@@ -219,20 +220,19 @@ pipeline {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials-id', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                         sh """
-                            echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                            echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
                         """
 
                         dir(WORKSPACE_DIR) {
-                            def commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-
                             env.AFFECTED_SERVICES.split(",").each { service ->
-                                echo "Pushing Docker image for ${service}..."
+                                echo "Pushing Docker image for ${service}:${env.DOCKER_COMMIT_ID}..."
 
                                 sh """
-                                    docker push anwirisme/${service}:${commitId}
+                                    docker push anwirisme/${service}:${env.DOCKER_COMMIT_ID}
                                 """
                             }
                         }
+                        sh "docker logout"
                     }
                 }
             }
