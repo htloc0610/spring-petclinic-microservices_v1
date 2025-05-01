@@ -230,6 +230,9 @@ pipeline {
                             echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
                         """
 
+                        echo "Listing all Docker images:"
+                        sh "docker images"
+
                         dir(WORKSPACE_DIR) {
                             env.AFFECTED_SERVICES.split(",").each { service ->
                                 echo "Pushing Docker image for ${service}:${env.DOCKER_COMMIT_ID}..."
