@@ -206,7 +206,7 @@ pipeline {
                             echo "Building Docker image for ${service} with tag ${env.DOCKER_COMMIT_ID}..."
 
                             sh """
-                                DOCKER_BUILDKIT=1 ./mvnw clean install -pl ${service} -PbuildDocker \\
+                                DOCKER_BUILDKIT=0 ./mvnw clean install -pl ${service} -PbuildDocker \\
                                 -Ddocker.image.prefix=anwirisme \\
                                 -Ddocker.image.tag=${env.DOCKER_COMMIT_ID}
                             """
