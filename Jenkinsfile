@@ -247,6 +247,29 @@ pipeline {
         }
     }
 
+    stage('Clean Docker Images') {
+        when {
+            allOf {
+                expression { env.AFFECTED_SERVICES }
+                expression { env.SKIP_PIPELINE != "true" }
+            }
+        }
+        steps {
+            script {
+                echo "Cleaning up Docker images:"
+
+                dir(WORKSPACE_DIR) {
+                    env.AFFECTED_SERVICES.split(",").each { service ->
+                        sh """
+                            docker rmi anwirisme/${service}:${env.DOCKER_COMMIT_ID} || true
+                            docker rmi anwirisme/${service}:latest || true
+                        """
+                    }
+                }
+            }
+        }
+    }
+
 
     post {
         success {
