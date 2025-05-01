@@ -182,6 +182,13 @@ pipeline {
             }
         }
 
+        stage('Test Docker Access') {
+            steps {
+                sh 'docker ps'
+            }
+        }
+
+
         stage('Build Docker Images') {
             when {
                 allOf {
