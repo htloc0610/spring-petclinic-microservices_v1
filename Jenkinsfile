@@ -182,13 +182,6 @@ pipeline {
             }
         }
 
-        stage('Test Docker Access') {
-            steps {
-                sh 'docker ps'
-            }
-        }
-
-
         stage('Build Docker Images') {
             when {
                 allOf {
@@ -208,7 +201,7 @@ pipeline {
                             sh """
                                 DOCKER_BUILDKIT=1 ./mvnw clean install -pl ${service} -PbuildDocker \\
                                 -Ddocker.image.prefix=anwirisme \\
-                                -Ddocker.image.tag=${env.DOCKER_COMMIT_ID}
+                                -Ddocker.image.tag=${env.DOCKER_COMMIT_ID ?: 'default_tag'}
                             """
                         }
                     }
