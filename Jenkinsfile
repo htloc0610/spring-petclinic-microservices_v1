@@ -198,10 +198,15 @@ pipeline {
                         env.AFFECTED_SERVICES.split(",").each { service ->
                             echo "Building Docker image for ${service} with tag ${env.DOCKER_COMMIT_ID}..."
 
+//                             sh """
+//                                 DOCKER_BUILDKIT=1 ./mvnw clean install -pl ${service} -PbuildDocker \\
+//                                 -Ddocker.image.prefix=anwirisme \\
+//                                 -Ddocker.image.tag=${env.DOCKER_COMMIT_ID}
+//                             """
+
+                            // Directly use Docker CLI to build and tag
                             sh """
-                                DOCKER_BUILDKIT=1 ./mvnw clean install -pl ${service} -PbuildDocker \\
-                                -Ddocker.image.prefix=anwirisme \\
-                                -Ddocker.image.tag=${env.DOCKER_COMMIT_ID ?: 'default_tag'}
+                                docker build -f ${service}/Dockerfile -t anwirisme/${service}:${env.DOCKER_COMMIT_ID} ${WORKSPACE_DIR}
                             """
                         }
                     }
