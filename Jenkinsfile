@@ -4,6 +4,7 @@ pipeline {
     environment {
         REPO_URL = 'https://github.com/htloc0610/spring-petclinic-microservices'
         WORKSPACE_DIR = "repo"
+        DOCKER_IMAGE_PREFIX = 'anwirisme'
     }
 
     stages {
@@ -200,13 +201,13 @@ pipeline {
 
                             sh """
                                 DOCKER_BUILDKIT=1 ./mvnw clean install -pl ${service} -PbuildDocker \\
-                                -Ddocker.image.prefix=anwirisme \\
+                                -Ddocker.image.prefix=${DOCKER_IMAGE_PREFIX} \\
                                 -Ddocker.image.tag=${env.DOCKER_COMMIT_ID}
                             """
 
                             // Add tag after build
                             sh """
-                                docker tag anwirisme/${service}:latest anwirisme/${service}:${env.DOCKER_COMMIT_ID}
+                                docker tag ${DOCKER_IMAGE_PREFIX}/${service}:latest ${DOCKER_IMAGE_PREFIX}/${service}:${env.DOCKER_COMMIT_ID}
                             """
                         }
                     }
@@ -236,7 +237,7 @@ pipeline {
                                 echo "Pushing Docker image for ${service}:${env.DOCKER_COMMIT_ID}..."
 
                                 sh """
-                                    docker push anwirisme/${service}:${env.DOCKER_COMMIT_ID}
+                                    docker push ${DOCKER_IMAGE_PREFIX}/${service}:${env.DOCKER_COMMIT_ID}
                                 """
                             }
                         }
@@ -260,8 +261,8 @@ pipeline {
                     dir(WORKSPACE_DIR) {
                         env.AFFECTED_SERVICES.split(",").each { service ->
                             sh """
-                                docker rmi anwirisme/${service}:${env.DOCKER_COMMIT_ID} || true
-                                docker rmi anwirisme/${service}:latest || true
+                                docker rmi ${DOCKER_IMAGE_PREFIX}/${service}:${env.DOCKER_COMMIT_ID} || true
+                                docker rmi ${DOCKER_IMAGE_PREFIX}/${service}:latest || true
                             """
                         }
                     }
