@@ -283,16 +283,7 @@ pipeline {
                         echo "Updating ${shortName} to tag ${env.DOCKER_COMMIT_ID}..."
 
                         sh """
-                            awk -v key="${shortName}" -v new_tag="${env.DOCKER_COMMIT_ID}" '
-                            /^\\s*[^:]+:/ {
-                                section = \$1
-                                gsub(":", "", section)
-                            }
-                            section == key && /tag:/ {
-                                sub(/tag:.*/, "tag: " new_tag)
-                            }
-                            { print }
-                            ' ${VALUE_FILE} > ${VALUE_FILE}.tmp && mv ${VALUE_FILE}.tmp ${VALUE_FILE}
+                            yq e '.image.${shortName}.tag = "${env.DOCKER_COMMIT_ID}"' -i ${VALUE_FILE}
                         """
                     }
 
