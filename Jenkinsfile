@@ -5,6 +5,10 @@ pipeline {
         REPO_URL = 'https://github.com/htloc0610/spring-petclinic-microservices'
         WORKSPACE_DIR = "repo"
         DOCKER_IMAGE_PREFIX = 'anwirisme'
+
+        DEPLOY_REPO = 'https://github.com/htloc0610/petclinic-deploy'
+        DEPLOY_DIR = 'petclinic-deploy'
+        VALUE_FILE = 'petclinic-deploy/values-dev.yaml'
     }
 
     stages {
@@ -269,6 +273,52 @@ pipeline {
                 }
             }
         }
+
+        stage('Update Helm Image Tags in Deploy Repo') {
+            when {
+                allOf {
+                    expression { env.BRANCH_NAME == 'main' }
+                    expression { env.AFFECTED_SERVICES }
+                    expression { env.SKIP_PIPELINE != "true" }
+                }
+            }
+            steps {
+                script {
+                    echo "Cloning deployment repo..."
+                    sh "rm -rf ${DEPLOY_DIR}"
+                    sh "git clone ${DEPLOY_REPO} ${DEPLOY_DIR}"
+
+                    echo "Updating image tags in ${VALUE_FILE}..."
+                    env.AFFECTED_SERVICES.split(",").each { service ->
+                        def shortName = service
+                            .replace("spring-petclinic-", "")
+                            .replace("-service", "Service")
+                            .replace("-server", "Server")
+                            .replace("-gateway", "Gateway")
+
+                        sh """
+                            sed -i 's|\\(${shortName}:\\s*\\n\\s*repository:.*\\n\\s*tag:\\s*\\).*|\\1${env.DOCKER_COMMIT_ID}|' ${VALUE_FILE}
+                        """
+                    }
+
+                    echo "Committing and pushing updated Helm values..."
+                    withCredentials([usernamePassword(credentialsId: 'github-credentials', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                        dir("${DEPLOY_DIR}") {
+                            sh """
+                                git config user.email "\${GIT_USER}@users.noreply.github.com"
+                                git config user.name "\${GIT_USER}"
+                                git remote set-url origin https://\${GIT_USER}:\${GIT_PASS}@github.com/htloc0610/petclinic-deploy.git
+
+                                git add values-dev.yaml
+                                git commit -m "chore: update dev image tags to ${env.DOCKER_COMMIT_ID}" || true
+                                git push origin main || true
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
     }
 
     post {
