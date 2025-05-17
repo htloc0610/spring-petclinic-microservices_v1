@@ -251,29 +251,6 @@ pipeline {
             }
         }
 
-        stage('Clean Docker Images') {
-            when {
-                allOf {
-                    expression { env.AFFECTED_SERVICES }
-                    expression { env.SKIP_PIPELINE != "true" }
-                }
-            }
-            steps {
-                script {
-                    echo "Cleaning up Docker images:"
-
-                    dir(WORKSPACE_DIR) {
-                        env.AFFECTED_SERVICES.split(",").each { service ->
-                            sh """
-                                docker rmi ${DOCKER_IMAGE_PREFIX}/${service}:${env.DOCKER_COMMIT_ID} || true
-                                docker rmi ${DOCKER_IMAGE_PREFIX}/${service}:latest || true
-                            """
-                        }
-                    }
-                }
-            }
-        }
-
         stage('Update Helm Image Tags in Deploy Repo') {
             when {
                 allOf {
@@ -324,6 +301,29 @@ pipeline {
                                 git add values-dev.yaml
                                 git commit -m "chore: update dev image tags to ${env.DOCKER_COMMIT_ID}" || true
                                 git push origin main || true
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Clean Docker Images') {
+            when {
+                allOf {
+                    expression { env.AFFECTED_SERVICES }
+                    expression { env.SKIP_PIPELINE != "true" }
+                }
+            }
+            steps {
+                script {
+                    echo "Cleaning up Docker images:"
+
+                    dir(WORKSPACE_DIR) {
+                        env.AFFECTED_SERVICES.split(",").each { service ->
+                            sh """
+                                docker rmi ${DOCKER_IMAGE_PREFIX}/${service}:${env.DOCKER_COMMIT_ID} || true
+                                docker rmi ${DOCKER_IMAGE_PREFIX}/${service}:latest || true
                             """
                         }
                     }
