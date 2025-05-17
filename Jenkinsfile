@@ -283,7 +283,16 @@ pipeline {
                         echo "Updating ${shortName} to tag ${env.DOCKER_COMMIT_ID}..."
 
                         sh """
-                            sed -i 's|\\(${shortName}:\\s*\\n\\s*repository:.*\\n\\s*tag:\\s*\\).*|\\1${env.DOCKER_COMMIT_ID}|' ${VALUE_FILE}
+                            awk -v key="${shortName}" -v new_tag="${env.DOCKER_COMMIT_ID}" '
+                            /^\\s*[^:]+:/ {
+                                section = \$1
+                                gsub(":", "", section)
+                            }
+                            section == key && /tag:/ {
+                                sub(/tag:.*/, "tag: " new_tag)
+                            }
+                            { print }
+                            ' ${VALUE_FILE} > ${VALUE_FILE}.tmp && mv ${VALUE_FILE}.tmp ${VALUE_FILE}
                         """
                     }
 
