@@ -418,7 +418,6 @@ pipeline {
             steps {
                 script {
                     echo "Pruning all unused Docker images and containers..."
-
                     sh "docker system prune -af"
                 }
             }
