@@ -311,29 +311,6 @@ pipeline {
             }
         }
 
-        stage('Clean Docker Images') {
-            when {
-                allOf {
-                    expression { env.AFFECTED_SERVICES }
-                    expression { env.SKIP_PIPELINE != "true" }
-                }
-            }
-            steps {
-                script {
-                    echo "Cleaning up Docker images:"
-
-                    dir(WORKSPACE_DIR) {
-                        env.AFFECTED_SERVICES.split(",").each { service ->
-                            sh """
-                                docker rmi ${DOCKER_IMAGE_PREFIX}/${service}:${env.DOCKER_COMMIT_ID} || true
-                                docker rmi ${DOCKER_IMAGE_PREFIX}/${service}:latest || true
-                            """
-                        }
-                    }
-                }
-            }
-        }
-
         stage('Build & Push All Services on Git Tag') {
             when {
                 expression {
@@ -421,6 +398,29 @@ pipeline {
                                 git add values-staging.yaml
                                 git commit -m "chore: update staging image tags to ${env.GIT_TAG_NAME}" || true
                                 git push origin main || true
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Clean Docker Images') {
+            when {
+                allOf {
+                    expression { env.AFFECTED_SERVICES }
+                    expression { env.SKIP_PIPELINE != "true" }
+                }
+            }
+            steps {
+                script {
+                    echo "Cleaning up Docker images:"
+
+                    dir(WORKSPACE_DIR) {
+                        env.AFFECTED_SERVICES.split(",").each { service ->
+                            sh """
+                                docker rmi ${DOCKER_IMAGE_PREFIX}/${service}:${env.DOCKER_COMMIT_ID} || true
+                                docker rmi ${DOCKER_IMAGE_PREFIX}/${service}:latest || true
                             """
                         }
                     }
