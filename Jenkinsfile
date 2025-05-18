@@ -407,9 +407,12 @@ pipeline {
 
         stage('Clean Docker Images') {
             when {
-                allOf {
-                    expression { env.AFFECTED_SERVICES }
-                    expression { env.SKIP_PIPELINE != "true" }
+                anyOf {
+                    expression { env.GIT_TAG_NAME?.trim() }
+                    allOf {
+                        expression { env.AFFECTED_SERVICES }
+                        expression { env.SKIP_PIPELINE != "true" }
+                    }
                 }
             }
             steps {
