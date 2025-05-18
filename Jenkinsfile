@@ -417,16 +417,9 @@ pipeline {
             }
             steps {
                 script {
-                    echo "Cleaning up Docker images:"
+                    echo "Pruning all unused Docker images and containers..."
 
-                    dir(WORKSPACE_DIR) {
-                        env.AFFECTED_SERVICES.split(",").each { service ->
-                            sh """
-                                docker rmi ${DOCKER_IMAGE_PREFIX}/${service}:${env.DOCKER_COMMIT_ID} || true
-                                docker rmi ${DOCKER_IMAGE_PREFIX}/${service}:latest || true
-                            """
-                        }
-                    }
+                    sh "docker system prune -af"
                 }
             }
         }
