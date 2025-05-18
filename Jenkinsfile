@@ -336,7 +336,13 @@ pipeline {
 
         stage('Build & Push All Services on Git Tag') {
             when {
-                expression { env.GIT_TAG_NAME }
+                expression {
+                    env.GIT_TAG_NAME = sh(
+                        script: "git describe --tags --exact-match || true",
+                        returnStdout: true
+                    ).trim()
+                    return env.GIT_TAG_NAME?.trim()
+                }
             }
             steps {
                 script {
