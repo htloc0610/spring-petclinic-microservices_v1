@@ -254,156 +254,156 @@ pipeline {
             }
         }
 
-//         stage('Update Helm Image Tags in Deploy Repo') {
-//             when {
-//                 allOf {
-//                     expression { env.BRANCH_NAME == 'main' }
-//                     expression { env.AFFECTED_SERVICES }
-//                     expression { env.SKIP_PIPELINE != "true" }
-//                 }
-//             }
-//             steps {
-//                 script {
-//                     def DEPLOY_REPO = "https://github.com/htloc0610/petclinic-deploy"
-//                     def DEPLOY_DIR = "petclinic-deploy"
-//                     def VALUE_FILE = "${DEPLOY_DIR}/values-dev.yaml"
-//
-//                     echo "Cloning deployment repo..."
-//                     sh "rm -rf ${DEPLOY_DIR}"
-//                     sh "git clone ${DEPLOY_REPO} ${DEPLOY_DIR}"
-//
-//                     echo "===== BEFORE UPDATE ====="
-//                     sh "cat ${VALUE_FILE}"
-//
-//                     echo "Updating image tags in ${VALUE_FILE}..."
-//                     env.AFFECTED_SERVICES.split(",").each { service ->
-//                         def shortName = service
-//                             .replace("spring-petclinic-", "")
-//                             .replace("-service", "Service")
-//                             .replace("-server", "Server")
-//                             .replace("-gateway", "Gateway")
-//
-//                         echo "Updating ${shortName} to tag ${env.DOCKER_COMMIT_ID}..."
-//
-//                         sh """
-//                             yq e '.image.${shortName}.tag = "${env.DOCKER_COMMIT_ID}"' -i ${VALUE_FILE}
-//                         """
-//                     }
-//
-//                     echo "===== AFTER UPDATE ====="
-//                     sh "cat ${VALUE_FILE}"
-//
-//                     echo "Committing and pushing updated Helm values..."
-//                     withCredentials([usernamePassword(credentialsId: 'github-credentials', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
-//                         dir("${DEPLOY_DIR}") {
-//                             sh """
-//                                 git config user.email "\${GIT_USER}@users.noreply.github.com"
-//                                 git config user.name "\${GIT_USER}"
-//                                 git remote set-url origin https://\${GIT_USER}:\${GIT_PASS}@github.com/htloc0610/petclinic-deploy.git
-//
-//                                 git add values-dev.yaml
-//                                 git commit -m "chore: update dev image tags to ${env.DOCKER_COMMIT_ID}" || true
-//                                 git push origin main || true
-//                             """
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//
-//         stage('Build & Push All Services on Git Tag') {
-//             when {
-//                 expression {
-//                     env.GIT_TAG_NAME = sh(
-//                         script: "git describe --tags --exact-match || true",
-//                         returnStdout: true
-//                     ).trim()
-//                     return env.GIT_TAG_NAME?.trim()
-//                 }
-//             }
-//             steps {
-//                 script {
-//                     def allServices = [
-//                         'spring-petclinic-admin-server',
-//                         'spring-petclinic-api-gateway',
-//                         'spring-petclinic-config-server',
-//                         'spring-petclinic-customers-service',
-//                         'spring-petclinic-discovery-server',
-//                         'spring-petclinic-genai-service',
-//                         'spring-petclinic-vets-service',
-//                         'spring-petclinic-visits-service'
-//                     ]
-//
-//                     dir(WORKSPACE_DIR) {
-//                         echo "Building and pushing all services for Git tag: ${env.GIT_TAG_NAME}"
-//
-//                         allServices.each { service ->
-//                             echo "Building Docker image for ${service} with tag ${env.GIT_TAG_NAME}..."
-//                             sh """
-//                                 DOCKER_BUILDKIT=1 ./mvnw clean install -pl ${service} -PbuildDocker \\
-//                                 -Ddocker.image.prefix=${DOCKER_IMAGE_PREFIX} \\
-//                                 -Ddocker.image.tag=${env.GIT_TAG_NAME}
-//                             """
-//
-//                             sh """
-//                                 docker tag ${DOCKER_IMAGE_PREFIX}/${service}:latest ${DOCKER_IMAGE_PREFIX}/${service}:${env.GIT_TAG_NAME}
-//                             """
-//                         }
-//
-//                         withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials-id', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-//                             sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
-//
-//                             allServices.each { service ->
-//                                 echo "Pushing Docker image for ${service}:${env.GIT_TAG_NAME}..."
-//                                 sh "docker push ${DOCKER_IMAGE_PREFIX}/${service}:${env.GIT_TAG_NAME}"
-//                             }
-//
-//                             sh "docker logout"
-//                         }
-//                     }
-//
-//                     // Cập nhật values-staging.yaml
-//                     echo "Cloning deployment repo to update staging values..."
-//                     sh "rm -rf ${DEPLOY_DIR}"
-//                     sh "git clone ${DEPLOY_REPO} ${DEPLOY_DIR}"
-//
-//                     def stagingFile = "${DEPLOY_DIR}/${env.STAGING_FILE}"
-//
-//                     echo "===== BEFORE UPDATE (staging) ====="
-//                     sh "cat ${stagingFile}"
-//
-//                     allServices.each { service ->
-//                         def shortName = service
-//                             .replace("spring-petclinic-", "")
-//                             .replace("-service", "Service")
-//                             .replace("-server", "Server")
-//                             .replace("-gateway", "Gateway")
-//
-//                         echo "Updating ${shortName} to tag ${env.GIT_TAG_NAME} in staging..."
-//                         sh """
-//                             yq e '.image.${shortName}.tag = "${env.GIT_TAG_NAME}"' -i ${stagingFile}
-//                         """
-//                     }
-//
-//                     echo "===== AFTER UPDATE (staging) ====="
-//                     sh "cat ${stagingFile}"
-//
-//                     withCredentials([usernamePassword(credentialsId: 'github-credentials', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
-//                         dir("${DEPLOY_DIR}") {
-//                             sh """
-//                                 git config user.email "\${GIT_USER}@users.noreply.github.com"
-//                                 git config user.name "\${GIT_USER}"
-//                                 git remote set-url origin https://\${GIT_USER}:\${GIT_PASS}@github.com/htloc0610/petclinic-deploy.git
-//
-//                                 git add values-staging.yaml
-//                                 git commit -m "chore: update staging image tags to ${env.GIT_TAG_NAME}" || true
-//                                 git push origin main || true
-//                             """
-//                         }
-//                     }
-//                 }
-//             }
-//         }
+        stage('Update Helm Image Tags in Deploy Repo') {
+            when {
+                allOf {
+                    expression { env.BRANCH_NAME == 'main' }
+                    expression { env.AFFECTED_SERVICES }
+                    expression { env.SKIP_PIPELINE != "true" }
+                }
+            }
+            steps {
+                script {
+                    def DEPLOY_REPO = "https://github.com/htloc0610/petclinic-deploy"
+                    def DEPLOY_DIR = "petclinic-deploy"
+                    def VALUE_FILE = "${DEPLOY_DIR}/values-dev.yaml"
+
+                    echo "Cloning deployment repo..."
+                    sh "rm -rf ${DEPLOY_DIR}"
+                    sh "git clone ${DEPLOY_REPO} ${DEPLOY_DIR}"
+
+                    echo "===== BEFORE UPDATE ====="
+                    sh "cat ${VALUE_FILE}"
+
+                    echo "Updating image tags in ${VALUE_FILE}..."
+                    env.AFFECTED_SERVICES.split(",").each { service ->
+                        def shortName = service
+                            .replace("spring-petclinic-", "")
+                            .replace("-service", "Service")
+                            .replace("-server", "Server")
+                            .replace("-gateway", "Gateway")
+
+                        echo "Updating ${shortName} to tag ${env.DOCKER_COMMIT_ID}..."
+
+                        sh """
+                            yq e '.image.${shortName}.tag = "${env.DOCKER_COMMIT_ID}"' -i ${VALUE_FILE}
+                        """
+                    }
+
+                    echo "===== AFTER UPDATE ====="
+                    sh "cat ${VALUE_FILE}"
+
+                    echo "Committing and pushing updated Helm values..."
+                    withCredentials([usernamePassword(credentialsId: 'github-credentials', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                        dir("${DEPLOY_DIR}") {
+                            sh """
+                                git config user.email "\${GIT_USER}@users.noreply.github.com"
+                                git config user.name "\${GIT_USER}"
+                                git remote set-url origin https://\${GIT_USER}:\${GIT_PASS}@github.com/htloc0610/petclinic-deploy.git
+
+                                git add values-dev.yaml
+                                git commit -m "chore: update dev image tags to ${env.DOCKER_COMMIT_ID}" || true
+                                git push origin main || true
+                            """
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Build & Push All Services on Git Tag') {
+            when {
+                expression {
+                    env.GIT_TAG_NAME = sh(
+                        script: "git describe --tags --exact-match || true",
+                        returnStdout: true
+                    ).trim()
+                    return env.GIT_TAG_NAME?.trim()
+                }
+            }
+            steps {
+                script {
+                    def allServices = [
+                        'spring-petclinic-admin-server',
+                        'spring-petclinic-api-gateway',
+                        'spring-petclinic-config-server',
+                        'spring-petclinic-customers-service',
+                        'spring-petclinic-discovery-server',
+                        'spring-petclinic-genai-service',
+                        'spring-petclinic-vets-service',
+                        'spring-petclinic-visits-service'
+                    ]
+
+                    dir(WORKSPACE_DIR) {
+                        echo "Building and pushing all services for Git tag: ${env.GIT_TAG_NAME}"
+
+                        allServices.each { service ->
+                            echo "Building Docker image for ${service} with tag ${env.GIT_TAG_NAME}..."
+                            sh """
+                                DOCKER_BUILDKIT=1 ./mvnw clean install -pl ${service} -PbuildDocker \\
+                                -Ddocker.image.prefix=${DOCKER_IMAGE_PREFIX} \\
+                                -Ddocker.image.tag=${env.GIT_TAG_NAME}
+                            """
+
+                            sh """
+                                docker tag ${DOCKER_IMAGE_PREFIX}/${service}:latest ${DOCKER_IMAGE_PREFIX}/${service}:${env.GIT_TAG_NAME}
+                            """
+                        }
+
+                        withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials-id', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                            sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
+
+                            allServices.each { service ->
+                                echo "Pushing Docker image for ${service}:${env.GIT_TAG_NAME}..."
+                                sh "docker push ${DOCKER_IMAGE_PREFIX}/${service}:${env.GIT_TAG_NAME}"
+                            }
+
+                            sh "docker logout"
+                        }
+                    }
+
+                    // Cập nhật values-staging.yaml
+                    echo "Cloning deployment repo to update staging values..."
+                    sh "rm -rf ${DEPLOY_DIR}"
+                    sh "git clone ${DEPLOY_REPO} ${DEPLOY_DIR}"
+
+                    def stagingFile = "${DEPLOY_DIR}/${env.STAGING_FILE}"
+
+                    echo "===== BEFORE UPDATE (staging) ====="
+                    sh "cat ${stagingFile}"
+
+                    allServices.each { service ->
+                        def shortName = service
+                            .replace("spring-petclinic-", "")
+                            .replace("-service", "Service")
+                            .replace("-server", "Server")
+                            .replace("-gateway", "Gateway")
+
+                        echo "Updating ${shortName} to tag ${env.GIT_TAG_NAME} in staging..."
+                        sh """
+                            yq e '.image.${shortName}.tag = "${env.GIT_TAG_NAME}"' -i ${stagingFile}
+                        """
+                    }
+
+                    echo "===== AFTER UPDATE (staging) ====="
+                    sh "cat ${stagingFile}"
+
+                    withCredentials([usernamePassword(credentialsId: 'github-credentials', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                        dir("${DEPLOY_DIR}") {
+                            sh """
+                                git config user.email "\${GIT_USER}@users.noreply.github.com"
+                                git config user.name "\${GIT_USER}"
+                                git remote set-url origin https://\${GIT_USER}:\${GIT_PASS}@github.com/htloc0610/petclinic-deploy.git
+
+                                git add values-staging.yaml
+                                git commit -m "chore: update staging image tags to ${env.GIT_TAG_NAME}" || true
+                                git push origin main || true
+                            """
+                        }
+                    }
+                }
+            }
+        }
 
         stage('Clean Docker Images') {
             when {
