@@ -1,9 +1,8 @@
 pipeline {
-    agent any
+    agent { label 'built-in' }
 
     environment {
         REPO_URL = 'https://github.com/htloc0610/spring-petclinic-microservices'
-        BRANCH = "dev"
         WORKSPACE_DIR = "repo"
     }
 
@@ -11,11 +10,24 @@ pipeline {
         stage('Checkout') {
             steps {
                 script {
-                    echo "Cloning repository ${REPO_URL} - Branch: ${BRANCH}"
+                    echo "Cloning repository ${REPO_URL}"
                     sh "rm -rf ${WORKSPACE_DIR}"
                     sh "mkdir -p ${WORKSPACE_DIR}"
+
                     dir(WORKSPACE_DIR) {
-                        sh "git clone -b ${BRANCH} ${REPO_URL} ."
+                        if (env.CHANGE_ID) {
+                            // Pull Request
+                            echo "Checking out PR #${env.CHANGE_ID} (target: ${env.CHANGE_TARGET})"
+                            sh "git init"
+                            sh "git remote add origin ${REPO_URL}"
+                            sh "git fetch origin refs/pull/${env.CHANGE_ID}/merge:pr-${env.CHANGE_ID}"
+                            sh "git fetch origin ${env.CHANGE_TARGET}:refs/remotes/origin/${env.CHANGE_TARGET}"
+                            sh "git checkout pr-${env.CHANGE_ID}"
+                        } else {
+                            // Branch
+                            echo "Checking out branch ${env.BRANCH_NAME}"
+                            sh "git clone -b ${env.BRANCH_NAME} ${REPO_URL} ."
+                        }
                     }
                 }
             }
@@ -25,7 +37,15 @@ pipeline {
             steps {
                 script {
                     dir(WORKSPACE_DIR) {
-                        def changes = sh(script: 'git diff --name-only HEAD~1', returnStdout: true).trim()
+                        def isPR = env.CHANGE_ID != null
+                        def changes = ''
+
+                        if (isPR) {
+                            changes = sh(script: "git diff --name-only origin/${env.CHANGE_TARGET}", returnStdout: true).trim()
+                        } else {
+                            changes = sh(script: "git diff --name-only HEAD~1", returnStdout: true).trim()
+                        }
+
                         echo "Files changed:\n${changes}"
 
                         def services = [
@@ -35,6 +55,7 @@ pipeline {
                             'spring-petclinic-customers-service',
                             'spring-petclinic-discovery-server',
                             'spring-petclinic-genai-service',
+                            'spring-petclinic-vets-service',
                             'spring-petclinic-visits-service'
                         ]
 
@@ -44,13 +65,12 @@ pipeline {
                             .findAll { it in services }
 
                         if (affectedServices.isEmpty()) {
-                            echo "No relevant changes, skipping pipeline"
-                            currentBuild.result = 'ABORTED'
-                            return
+                            echo "No relevant changes, skipping tests and build"
+                            env.SKIP_PIPELINE = "true"
+                        } else {
+                            env.AFFECTED_SERVICES = affectedServices.join(",")
+                            echo "Services to build: ${env.AFFECTED_SERVICES}"
                         }
-
-                        env.AFFECTED_SERVICES = affectedServices.join(",")
-                        echo "Services to build: ${env.AFFECTED_SERVICES}"
                     }
                 }
             }
@@ -58,7 +78,10 @@ pipeline {
 
         stage('Test') {
             when {
-                expression { env.AFFECTED_SERVICES }
+                allOf {
+                    expression { env.AFFECTED_SERVICES }
+                    expression { env.SKIP_PIPELINE != "true" }
+                }
             }
             steps {
                 script {
@@ -83,7 +106,10 @@ pipeline {
 
         stage('Code Coverage') {
             when {
-                expression { env.AFFECTED_SERVICES }
+                allOf {
+                    expression { env.AFFECTED_SERVICES }
+                    expression { env.SKIP_PIPELINE != "true" }
+                }
             }
             steps {
                 script {
@@ -94,7 +120,6 @@ pipeline {
                                 sh 'mvn jacoco:report'
                                 sh 'cat target/site/jacoco/jacoco.csv'
 
-                                // Calculate code coverage
                                 def coverageData = sh(script: '''
                                     tail -n +2 target/site/jacoco/jacoco.csv | awk -F',' '
                                     { total+=$4+$5; covered+=$5 }
@@ -103,6 +128,13 @@ pipeline {
 
                                 echo "Code Coverage for ${service}: ${coverageData}%"
 
+                                // Check coverage > 70 pull request for main
+                                if (env.CHANGE_ID && env.CHANGE_TARGET == 'main') {
+                                    def coverageValue = coverageData.toFloat()
+                                    if (coverageValue < 70) {
+                                        error "Code coverage for ${service} is ${coverageValue}%, which is below the required 70% for PRs to main. Failing the pipeline."
+                                    }
+                                }
                             } catch (Exception e) {
                                 error "Code coverage report generation failed for ${service}"
                             }
@@ -127,10 +159,12 @@ pipeline {
             }
         }
 
-
         stage('Build') {
             when {
-                expression { env.AFFECTED_SERVICES }
+                allOf {
+                    expression { env.AFFECTED_SERVICES }
+                    expression { env.SKIP_PIPELINE != "true" }
+                }
             }
             steps {
                 script {
@@ -147,12 +181,11 @@ pipeline {
                 }
             }
         }
-
     }
 
     post {
         success {
-            echo "Pipeline completed successfully for ${env.AFFECTED_SERVICES}!"
+            echo "Pipeline completed successfully!"
         }
         failure {
             echo "Pipeline failed!"
