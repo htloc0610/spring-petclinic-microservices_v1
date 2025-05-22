@@ -2,7 +2,7 @@ pipeline {
     agent { label 'built-in' }
 
     environment {
-        REPO_URL = 'https://github.com/htloc0610/spring-petclinic-microservices'
+        REPO_URL = 'https://github.com/htloc0610/spring-petclinic-microservices_v1'
         WORKSPACE_DIR = "repo"
     }
 
