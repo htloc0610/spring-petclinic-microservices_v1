@@ -35,8 +35,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.util.Collections;
 import java.util.List;
+import jakarta.servlet.ServletException;
 
 /**
  * @author Maciej Szarlinski
@@ -135,5 +137,310 @@ class VetResourceTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].specialties[0].name").value("Anesthesiology"))
             .andExpect(jsonPath("$[0].specialties[1].name").value("Dentistry"));
+    }
+
+    @Test
+    void shouldReturnMultipleVets() throws Exception {
+        Vet vet1 = new Vet();
+        vet1.setId(1);
+        vet1.setFirstName("John");
+        vet1.setLastName("Doe");
+
+        Vet vet2 = new Vet();
+        vet2.setId(2);
+        vet2.setFirstName("Jane");
+        vet2.setLastName("Smith");
+
+        Specialty specialty = new Specialty();
+        specialty.setName("Surgery");
+        vet1.addSpecialty(specialty);
+
+        given(vetRepository.findAll()).willReturn(asList(vet1, vet2));
+
+        mvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(1))
+            .andExpect(jsonPath("$[0].firstName").value("John"))
+            .andExpect(jsonPath("$[1].id").value(2))
+            .andExpect(jsonPath("$[1].firstName").value("Jane"));
+    }
+
+    @Test
+    void shouldReturnVetWithMultipleSpecialties() throws Exception {
+        Vet vet = new Vet();
+        vet.setId(4);
+        vet.setFirstName("Bob");
+        vet.setLastName("Johnson");
+
+        Specialty s1 = new Specialty();
+        s1.setName("Cardiology");
+
+        Specialty s2 = new Specialty();
+        s2.setName("Neurology");
+
+        Specialty s3 = new Specialty();
+        s3.setName("Oncology");
+
+        vet.addSpecialty(s1);
+        vet.addSpecialty(s2);
+        vet.addSpecialty(s3);
+
+        given(vetRepository.findAll()).willReturn(List.of(vet));
+
+        mvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].specialties.length()").value(3))
+            .andExpect(jsonPath("$[0].specialties[0].name").value("Cardiology"))
+            .andExpect(jsonPath("$[0].specialties[1].name").value("Neurology"))
+            .andExpect(jsonPath("$[0].specialties[2].name").value("Oncology"));
+    }
+
+    @Test
+    void shouldReturnVetWithNullSpecialties() throws Exception {
+        Vet vet = new Vet();
+        vet.setId(5);
+        vet.setFirstName("Charlie");
+        vet.setLastName("Brown");
+
+        given(vetRepository.findAll()).willReturn(List.of(vet));
+
+        mvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(5))
+            .andExpect(jsonPath("$[0].specialties").isEmpty());
+    }
+
+    @Test
+    void shouldReturnVetWithEmptySpecialties() throws Exception {
+        Vet vet = new Vet();
+        vet.setId(6);
+        vet.setFirstName("David");
+        vet.setLastName("Wilson");
+
+        // Add and then clear specialties to test empty set
+        Specialty specialty = new Specialty();
+        specialty.setName("Test");
+        vet.addSpecialty(specialty);
+        // Clear specialties by setting to null and then accessing
+        vet.setSpecialties(null);
+
+        given(vetRepository.findAll()).willReturn(List.of(vet));
+
+        mvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(6))
+            .andExpect(jsonPath("$[0].specialties").isEmpty());
+    }
+
+    @Test
+    void shouldReturnVetWithSpecialtiesContainingNullNames() throws Exception {
+        Vet vet = new Vet();
+        vet.setId(7);
+        vet.setFirstName("Eva");
+        vet.setLastName("Garcia");
+
+        Specialty s1 = new Specialty();
+        s1.setName(null);
+
+        Specialty s2 = new Specialty();
+        s2.setName("Valid Specialty");
+
+        vet.addSpecialty(s1);
+        vet.addSpecialty(s2);
+
+        given(vetRepository.findAll()).willReturn(List.of(vet));
+
+        mvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].specialties.length()").value(2));
+    }
+
+    @Test
+    void shouldReturnVetWithSpecialtiesContainingEmptyNames() throws Exception {
+        Vet vet = new Vet();
+        vet.setId(8);
+        vet.setFirstName("Frank");
+        vet.setLastName("Miller");
+
+        Specialty s1 = new Specialty();
+        s1.setName("");
+
+        Specialty s2 = new Specialty();
+        s2.setName("Valid Specialty");
+
+        vet.addSpecialty(s1);
+        vet.addSpecialty(s2);
+
+        given(vetRepository.findAll()).willReturn(List.of(vet));
+
+        mvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].specialties.length()").value(2));
+    }
+
+    @Test
+    void shouldReturnVetWithSpecialtiesContainingSpecialCharacters() throws Exception {
+        Vet vet = new Vet();
+        vet.setId(9);
+        vet.setFirstName("Grace");
+        vet.setLastName("O'Connor");
+
+        Specialty s1 = new Specialty();
+        s1.setName("Cardio-Thoracic Surgery");
+
+        Specialty s2 = new Specialty();
+        s2.setName("Emergency & Critical Care");
+
+        vet.addSpecialty(s1);
+        vet.addSpecialty(s2);
+
+        given(vetRepository.findAll()).willReturn(List.of(vet));
+
+        mvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].specialties.length()").value(2))
+            .andExpect(jsonPath("$[0].specialties[0].name").value("Cardio-Thoracic Surgery"))
+            .andExpect(jsonPath("$[0].specialties[1].name").value("Emergency & Critical Care"));
+    }
+
+    @Test
+    void shouldReturnVetWithVeryLongSpecialtyName() throws Exception {
+        Vet vet = new Vet();
+        vet.setId(10);
+        vet.setFirstName("Henry");
+        vet.setLastName("Thompson");
+
+        Specialty s1 = new Specialty();
+        s1.setName("A".repeat(1000)); // Very long name
+
+        vet.addSpecialty(s1);
+
+        given(vetRepository.findAll()).willReturn(List.of(vet));
+
+        mvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].specialties.length()").value(1));
+    }
+
+    @Test
+    void shouldReturnVetWithUnicodeSpecialtyNames() throws Exception {
+        Vet vet = new Vet();
+        vet.setId(11);
+        vet.setFirstName("Isabella");
+        vet.setLastName("Rodríguez");
+
+        Specialty s1 = new Specialty();
+        s1.setName("Cardiología");
+
+        Specialty s2 = new Specialty();
+        s2.setName("Neurología");
+
+        vet.addSpecialty(s1);
+        vet.addSpecialty(s2);
+
+        given(vetRepository.findAll()).willReturn(List.of(vet));
+
+        mvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].specialties.length()").value(2))
+            .andExpect(jsonPath("$[0].specialties[0].name").value("Cardiología"))
+            .andExpect(jsonPath("$[0].specialties[1].name").value("Neurología"));
+    }
+
+    @Test
+    void shouldReturnVetWithRepositoryException() throws Exception {
+        given(vetRepository.findAll()).willThrow(new RuntimeException("Database error"));
+
+        assertThrows(ServletException.class, () -> {
+            mvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON));
+        });
+    }
+
+    @Test
+    void shouldReturnVetWithNullFirstName() throws Exception {
+        Vet vet = new Vet();
+        vet.setId(12);
+        vet.setFirstName(null);
+        vet.setLastName("Smith");
+
+        given(vetRepository.findAll()).willReturn(List.of(vet));
+
+        mvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(12))
+            .andExpect(jsonPath("$[0].firstName").isEmpty());
+    }
+
+    @Test
+    void shouldReturnVetWithNullLastName() throws Exception {
+        Vet vet = new Vet();
+        vet.setId(13);
+        vet.setFirstName("John");
+        vet.setLastName(null);
+
+        given(vetRepository.findAll()).willReturn(List.of(vet));
+
+        mvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(13))
+            .andExpect(jsonPath("$[0].lastName").isEmpty());
+    }
+
+    @Test
+    void shouldReturnVetWithEmptyFirstName() throws Exception {
+        Vet vet = new Vet();
+        vet.setId(14);
+        vet.setFirstName("");
+        vet.setLastName("Smith");
+
+        given(vetRepository.findAll()).willReturn(List.of(vet));
+
+        mvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(14))
+            .andExpect(jsonPath("$[0].firstName").value(""));
+    }
+
+    @Test
+    void shouldReturnVetWithEmptyLastName() throws Exception {
+        Vet vet = new Vet();
+        vet.setId(15);
+        vet.setFirstName("John");
+        vet.setLastName("");
+
+        given(vetRepository.findAll()).willReturn(List.of(vet));
+
+        mvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(15))
+            .andExpect(jsonPath("$[0].lastName").value(""));
+    }
+
+    @Test
+    void shouldReturnVetWithZeroId() throws Exception {
+        Vet vet = new Vet();
+        vet.setId(0);
+        vet.setFirstName("Zero");
+        vet.setLastName("Vet");
+
+        given(vetRepository.findAll()).willReturn(List.of(vet));
+
+        mvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(0));
+    }
+
+    @Test
+    void shouldReturnVetWithNegativeId() throws Exception {
+        Vet vet = new Vet();
+        vet.setId(-1);
+        vet.setFirstName("Negative");
+        vet.setLastName("Vet");
+
+        given(vetRepository.findAll()).willReturn(List.of(vet));
+
+        mvc.perform(get("/vets").accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(-1));
     }
 }
