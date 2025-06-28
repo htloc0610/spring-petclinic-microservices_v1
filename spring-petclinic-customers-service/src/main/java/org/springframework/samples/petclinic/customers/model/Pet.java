@@ -60,9 +60,9 @@ public class Pet {
             .append("id", this.getId())
             .append("name", this.getName())
             .append("birthDate", this.getBirthDate())
-            .append("type", this.getType().getName())
-            .append("ownerFirstname", this.getOwner().getFirstName())
-            .append("ownerLastname", this.getOwner().getLastName())
+            .append("type", this.getType() != null ? this.getType().getName() : null)
+            .append("ownerFirstname", this.getOwner() != null ? this.getOwner().getFirstName() : null)
+            .append("ownerLastname", this.getOwner() != null ? this.getOwner().getLastName() : null)
             .toString();
     }
 

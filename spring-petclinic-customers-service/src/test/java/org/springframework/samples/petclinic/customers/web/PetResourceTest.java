@@ -26,6 +26,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import jakarta.servlet.ServletException;
 
 /**
  * @author Maciej Szarlinski
@@ -195,5 +197,223 @@ class PetResourceTest {
 
         owner.addPet(pet);
         return pet;
+    }
+
+    @Test
+    void shouldCreatePetWithNullValues() throws Exception {
+        // Arrange
+        int ownerId = 1;
+        Owner owner = new Owner();
+        owner.setFirstName("John");
+        owner.setLastName("Doe");
+
+        PetType petType = createPetType(1, "dog");
+
+        given(ownerRepository.findById(ownerId)).willReturn(Optional.of(owner));
+        given(petRepository.findPetTypeById(1)).willReturn(Optional.of(petType));
+        willAnswer(invocation -> {
+            Pet petToSave = invocation.getArgument(0);
+            petToSave.setId(101);
+            return petToSave;
+        }).given(petRepository).save(any(Pet.class));
+
+        // Act & Assert
+        mvc.perform(post("/owners/1/pets")
+            .content("{\"name\": null, \"birthDate\": null, \"typeId\": 1}")
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isCreated());
+    }
+
+    @Test
+    void shouldCreatePetWithEmptyName() throws Exception {
+        // Arrange
+        int ownerId = 1;
+        Owner owner = new Owner();
+        owner.setFirstName("John");
+        owner.setLastName("Doe");
+
+        PetType petType = createPetType(1, "dog");
+
+        given(ownerRepository.findById(ownerId)).willReturn(Optional.of(owner));
+        given(petRepository.findPetTypeById(1)).willReturn(Optional.of(petType));
+        willAnswer(invocation -> {
+            Pet petToSave = invocation.getArgument(0);
+            petToSave.setId(102);
+            return petToSave;
+        }).given(petRepository).save(any(Pet.class));
+
+        // Act & Assert
+        mvc.perform(post("/owners/1/pets")
+            .content("{\"name\": \"\", \"birthDate\": \"2022-04-01\", \"typeId\": 1}")
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isCreated());
+    }
+
+    @Test
+    void shouldCreatePetWithZeroOwnerId() throws Exception {
+        // Arrange
+        int ownerId = 0;
+        Owner owner = new Owner();
+        owner.setFirstName("Zero");
+        owner.setLastName("Owner");
+
+        PetType petType = createPetType(1, "dog");
+
+        given(ownerRepository.findById(ownerId)).willReturn(Optional.of(owner));
+        given(petRepository.findPetTypeById(1)).willReturn(Optional.of(petType));
+        willAnswer(invocation -> {
+            Pet petToSave = invocation.getArgument(0);
+            petToSave.setId(103);
+            return petToSave;
+        }).given(petRepository).save(any(Pet.class));
+
+        // Act & Assert
+        mvc.perform(post("/owners/0/pets")
+            .content("{\"name\": \"Buddy\", \"birthDate\": \"2022-04-01\", \"typeId\": 1}")
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldCreatePetWithNegativeOwnerId() throws Exception {
+        // Arrange
+        int ownerId = -1;
+        Owner owner = new Owner();
+        owner.setFirstName("Negative");
+        owner.setLastName("Owner");
+
+        PetType petType = createPetType(1, "dog");
+
+        given(ownerRepository.findById(ownerId)).willReturn(Optional.of(owner));
+        given(petRepository.findPetTypeById(1)).willReturn(Optional.of(petType));
+        willAnswer(invocation -> {
+            Pet petToSave = invocation.getArgument(0);
+            petToSave.setId(104);
+            return petToSave;
+        }).given(petRepository).save(any(Pet.class));
+
+        // Act & Assert
+        mvc.perform(post("/owners/-1/pets")
+            .content("{\"name\": \"Buddy\", \"birthDate\": \"2022-04-01\", \"typeId\": 1}")
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldUpdatePetWithZeroId() throws Exception {
+        // Arrange
+        int petId = 0;
+        Pet pet = new Pet();
+        pet.setId(petId);
+        pet.setName("ZeroPet");
+
+        PetType newType = createPetType(3, "lizard");
+
+        given(petRepository.findById(petId)).willReturn(Optional.of(pet));
+        given(petRepository.findPetTypeById(3)).willReturn(Optional.of(newType));
+        willAnswer(invocation -> invocation.getArgument(0))
+            .given(petRepository).save(any(Pet.class));
+
+        // Act & Assert
+        mvc.perform(put("/owners/1/pets/0")
+            .content("{\"id\": 0, \"name\": \"UpdatedZeroPet\", \"birthDate\": \"2020-03-15\", \"typeId\": 3}")
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void shouldUpdatePetWithNegativeId() throws Exception {
+        // Arrange
+        int petId = -1;
+        Pet pet = new Pet();
+        pet.setId(petId);
+        pet.setName("NegativePet");
+
+        PetType newType = createPetType(3, "lizard");
+
+        given(petRepository.findById(petId)).willReturn(Optional.of(pet));
+        given(petRepository.findPetTypeById(3)).willReturn(Optional.of(newType));
+        willAnswer(invocation -> invocation.getArgument(0))
+            .given(petRepository).save(any(Pet.class));
+
+        // Act & Assert
+        mvc.perform(put("/owners/1/pets/-1")
+            .content("{\"id\": -1, \"name\": \"UpdatedNegativePet\", \"birthDate\": \"2020-03-15\", \"typeId\": 3}")
+            .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON))
+            .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void shouldCreatePetWithRepositoryException() throws Exception {
+        // Arrange
+        int ownerId = 1;
+        Owner owner = new Owner();
+        owner.setFirstName("John");
+        owner.setLastName("Doe");
+
+        PetType petType = createPetType(1, "dog");
+
+        given(ownerRepository.findById(ownerId)).willReturn(Optional.of(owner));
+        given(petRepository.findPetTypeById(1)).willReturn(Optional.of(petType));
+        given(petRepository.save(any(Pet.class))).willThrow(new RuntimeException("Database error"));
+
+        // Act & Assert
+        assertThrows(ServletException.class, () -> {
+            mvc.perform(post("/owners/1/pets")
+                .content("{\"name\": \"Buddy\", \"birthDate\": \"2022-04-01\", \"typeId\": 1}")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON));
+        });
+    }
+
+    @Test
+    void shouldGetPetWithRepositoryException() throws Exception {
+        // Arrange
+        given(petRepository.findById(2)).willThrow(new RuntimeException("Database error"));
+
+        // Act & Assert
+        assertThrows(ServletException.class, () -> {
+            mvc.perform(get("/owners/2/pets/2").accept(MediaType.APPLICATION_JSON));
+        });
+    }
+
+    @Test
+    void shouldGetAllPetTypesWithRepositoryException() throws Exception {
+        // Arrange
+        given(petRepository.findPetTypes()).willThrow(new RuntimeException("Database error"));
+
+        // Act & Assert
+        assertThrows(ServletException.class, () -> {
+            mvc.perform(get("/petTypes").accept(MediaType.APPLICATION_JSON));
+        });
+    }
+
+    @Test
+    void shouldUpdatePetWithRepositoryException() throws Exception {
+        // Arrange
+        int petId = 2;
+        Pet pet = new Pet();
+        pet.setId(petId);
+        pet.setName("OldName");
+
+        PetType newType = createPetType(3, "lizard");
+
+        given(petRepository.findById(petId)).willReturn(Optional.of(pet));
+        given(petRepository.findPetTypeById(3)).willReturn(Optional.of(newType));
+        given(petRepository.save(any(Pet.class))).willThrow(new RuntimeException("Database error"));
+
+        // Act & Assert
+        assertThrows(ServletException.class, () -> {
+            mvc.perform(put("/owners/1/pets/2")
+                .content("{\"id\": 2, \"name\": \"UpdatedBuddy\", \"birthDate\": \"2020-03-15\", \"typeId\": 3}")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON));
+        });
     }
 }
