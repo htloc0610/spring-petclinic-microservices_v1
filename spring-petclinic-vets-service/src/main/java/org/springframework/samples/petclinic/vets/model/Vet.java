@@ -99,4 +99,8 @@ public class Vet {
     public void setLastName(String lastName) {
         this.lastName = lastName;
     }
+
+    public void setSpecialties(Set<Specialty> specialties) {
+        this.specialties = specialties;
+    }
 }
